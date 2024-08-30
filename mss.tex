@@ -1,10 +1,14 @@
 \documentclass[twoside]{article}
 
 \usepackage{ustj}
+\usepackage{booktabs}% http://ctan.org/pkg/booktabs
+\newcommand{\tabitem}{~~\llap{\textbullet}~~}
 
-\newcommand{\authorname}{Ernest P. Worrell}
-\newcommand{\authorpatp}{\patp{sampel-palnet}}
-\newcommand{\affiliation}{Kamp Kikakee}
+\addbibresource{mss.bib}
+
+\newcommand{\authorname}{Ted Blackman}
+\newcommand{\authorpatp}{\patp{rovnys-ricfer}}
+\newcommand{\affiliation}{Urbit Foundation}
 
 %  Make first page footer:
 \fancypagestyle{firststyle}{%
@@ -21,11 +25,11 @@
 %  Arrange subsequent pages:
 \fancyhf{}
 \fancyhead[LE]{{\urbitfont Urbit Systems Technical Journal}}
-\fancyhead[RO]{Floating-Point Arithmetic on Deterministic Systems}
+\fancyhead[RO]{Ford Fusion}
 \fancyfoot[LE,RO]{\thepage}
 
 %%MANUSCRIPT
-\title{Ernest Goes to Mars:  An Enquiry into the Foundations of Artificial Stupidity}
+\title{Ford Fusion}
 \author{\authorname~\authorpatp \\ \affiliation}
 \date{}
 
@@ -35,7 +39,7 @@
 \thispagestyle{firststyle}
 
 \begin{abstract}
-In this groundbreaking paper, we embark on a cosmic journey with the renowned character Ernest P. Worrell as he ventures into the unexplored realm of Martian computing. Drawing inspiration from Ernest's comically ingenious encounters with everyday challenges, we investigate the foundations of what we term "Artificial Stupidity." As Ernest grapples with Martian technology, we delve into the intricacies of programming errors, algorithmic missteps, and the curious phenomena that arise when human-like intelligence meets extraterrestrial computing systems. Our analysis sheds light on the unexpected intersections between humor, artificial intelligence, and the cosmic absurdity of Martian software. Join us in this interplanetary exploration as we unravel the mysteries of Artificial Stupidity through the lens of Ernest's interstellar escapades.
+  Ford Fusion was an overhaul of Urbit's over-the-air upgrade process and a rewrite of its build system. The new update system corrected a few long-standing bugs with the previous one, and the new build system is simpler, smaller (by around 5,000 lines), and easier to manage.  This historical report was published on the Urbit Blog as a capitulation of the project, which successfully revamped the Hoon code build system.  It is lightly annotated to update the minor technical changes that have occurred since the original publication; this is intended as a living document to some extent.  Ford Fusion remains the state of the art for building Urbit software as of writing.
 \end{abstract}
 
 % We will adjust page numbering in final editing.
@@ -44,49 +48,38 @@ In this groundbreaking paper, we embark on a cosmic journey with the renowned ch
 
 \tableofcontents
 
-\section{Introduction}
+\vspace{\heightof{T}}
+\noindent\sloppy
+\emph{This Ford Fusion description was released by \patp{rovnys-ricfer} on \texttt{\textasciitilde 2020.7.14}.}
 
-+++
-title = "Ford Fusion"
-date = "2020-07-14"
-description = "Ford Fusion was an overhaul of Urbit's over-the-air upgrade process and a rewrite of its build system. The new update system corrects a few long-standing bugs with the previous one, and the new build system is simpler, smaller (by around 5,000 lines), and easier to manage."
 
-[extra]
-author = "Ted Blackman"
-ship = "~rovnys-ricfer"
-image = "https://media.urbit.org/site/posts/essays/ford-fusion.png"
-+++
-
-![](https://media.urbit.org/site/posts/essays/ford-fusion.png)
-
-## Overview and Rationale
+\section{Overview and Rationale}
 
 Ford Fusion was an overhaul of Urbit's over-the-air upgrade process and a rewrite of its build system. The new update system corrects a few long-standing bugs with the previous one, and the new build system is simpler, smaller (by around 5,000 lines), and easier to manage.
 
-Since deployment of Ford Fusion to the livenet in late June, over-the-air updates (OTAs) have been much smoother. Before Ford Fusion, it was common for an OTA to take several hours, use too much memory, and leave ships in inconsistent states. After Ford Fusion, multiple OTAs have been pushed out, including kernelspace changes, and most users didn't even notice.
+Since deployment of Ford Fusion to the livenet in late June, over-the-air updates (\textsc{ota}s) have been much smoother. Before Ford Fusion, it was common for an \textsc{ota} to take several hours, use too much memory, and leave ships in inconsistent states. After Ford Fusion, multiple \textsc{ota}s have been pushed out, including kernelspace changes, and most users didn't even notice.
 
-Urbit has always been able to update itself OTA, but this process has often been rocky. Updating an operating system kernel on-the-fly is a difficult problem in general, like performing heart replacement surgery on yourself while running a marathon. Code that allows Linux to update its kernel in this way became a startup called Ksplice, won multiple awards, and sold to Oracle. Even that, as impressive as it is, and as brilliant as its [programmers](https://nelhage.com) are, can only perform certain limited kinds of patches to the kernel.
+Urbit has always been able to update itself \textsc{ota}, but this process has often been rocky. Updating an operating system kernel on-the-fly is a difficult problem in general, like performing heart replacement surgery on yourself while running a marathon. Code that allows Linux to update its kernel in this way became a startup called Ksplice, won multiple awards, and sold to Oracle. Even that, as impressive as it is, and as brilliant as its programmers are, can only perform certain limited kinds of patches to the kernel.
 
 Urbit isn't exactly a traditional operating system, so the comparison is somewhat unfair, but the purpose of better architecture is to create unfair comparisons. In this case, because the Nock layer is frozen, upgrading everything above that layer is easier. Upgrades are also facilitated by pure-functional semantics, transactional event processing, a type system oriented toward concrete data, and orthogonal persistence. These features make it feasible for Urbit to upgrade
 itself in the general case, not just some special cases.
 
 Ford Fusion has fixed the major upgrade issues of the past by guaranteeing three properties that in retrospect are obvious requirements, but, like much of Urbit, took many years and rewrites to identify as such:
 
-- Atomic: the update should complete or fail in one transaction. If it
-  fails, the system shouldn't get stuck.
-- Self-contained: there must be no implicit dependencies or hysteresis
-  (dependence on previous system states) when building the new software
+\begin{itemize}
+  \item  Atomic: the update should complete or fail in one transaction. If it fails, the system shouldn't get stuck.
+  \item  Self-contained: there must be no implicit dependencies or hysteresis (dependence on previous system states) when building the new software
   from source.
-- Ordered: updates must be monotonically sequenced from the system's
-  lowest layer to highest.
+  \item  Ordered: updates must be monotonically sequenced from the system's lowest layer to highest.
+\end{itemize}
 
 Let’s walk through them one by one.
 
-### Atomic
+\subsection{Atomicity}
 
 In previous versions of Urbit, updates failed atomicity by deferring parts of the update to later events, which are separate transactions that can fail independently. Generally, each deferral causes an exponential increase in the number of failure states that needed to be handled.
 
-We've learned that asynchronicity is an entropic state. A system will tend toward more asynchronicity over time unless effort is put into keeping it synchronous. [As Jonathan Blow has noted](https://youtu.be/pW-SOdj4Kkk?t=2547), the language server protocol has turned every editor plugin into a distributed system, since now it has to communicate asynchronously with the main editor process.
+We've learned that asynchronicity is an entropic state. A system will tend toward more asynchronicity over time unless effort is put into keeping it synchronous. As developer Jonathan Blow has noted (\citet{Blow2019}, 42m27s), the language server protocol has turned every editor plugin into a distributed system, since now it has to communicate asynchronously with the main editor process.
 
 Consider an update system that took multiple Arvo events to complete. An ad-hoc higher-level transaction system would need to be built to roll back the effects of the first few events in case of failure. It’s important for various parts of the system to be able to emit effects on upgrade; since those effects would need to be rolled back if a later event in this upgrade fails, the system would need to maintain a queue of those events and only apply them once all the other upgrade events have completed.
 
@@ -94,18 +87,17 @@ Note that the asynchronicity has now spread. Some effects that would normally be
 
 This observation is not purely theoretical. False modularity was the cause of internal asynchronicity in Clay where it had to wait for responses in a complex dance with Ford, which was another vane (Arvo kernel module); moving Ford into Clay allowed function calls that were synchronous from Clay’s perspective, which allowed further simplifications, culminating in about a twenty percent reduction of source code size of the Arvo kernelspace.
 
-[Steve Yegge's "platform
-rant"](https://gist.github.com/chitchcock/1281611) describes a Bezosian
+Steve Yegge's ``platform rant'' \citep{Yegge2011} describes a Bezosian
 edict prohibiting synchronous communication among modules through direct
 linking. This can be seen as an acknowledgment of the difficulty Amazon
 was going to have when it needed to turn internal services external. If
 your software needs to run in hell, build it that way from the start.
 
-An Urbit ship is not an enterprise SaaS product and does not need to run in this hell; it exists for just one person, with natural pressure pushing it in the opposite direction from Amazon’s web services. Instead of needing a ship’s state and functionality sharded into microservices strewn across multiple clusters, an Urbit instance is easiest to manage as a single server with all its state unified into one data structure and its event log stored as one totally ordered sequence of state updates -- the antithesis of a distributed system.
+An Urbit ship is not an enterprise SaaS product and does not need to run in this hell; it exists for just one person, with natural pressure pushing it in the opposite direction from Amazon’s web services. Instead of needing a ship’s state and functionality sharded into microservices strewn across multiple clusters, an Urbit instance is easiest to manage as a single server with all its state unified into one data structure and its event log stored as one totally ordered sequence of state updates – the antithesis of a distributed system.
 
-### Self-Contained
+\subsection{Self-Containment}
 
-Before Ford Fusion, each commit to the Clay filesystem validated its files using filetypes (called “marks”) defined by files in the previous commit. This could cause bugs if the filetype definitions had changed in a backward-incompatible manner. It also meant a commit could not add both a new filetype and new files of that type; instead, you needed two commits: one to define the filetypes, and a second to add files of that new type. More theoretically, it caused history-dependence. The validated contents of files in a commit could vary based on the history of commits that led to this one.
+Before Ford Fusion, each commit to the Clay filesystem validated its files using filetypes (called ``marks'') defined by files in the previous commit.\footnote{See \patp{lagrev-nocfep}, pp. TODO, this issue.} This could cause bugs if the filetype definitions had changed in a backward-incompatible manner. It also meant a commit could not add both a new filetype and new files of that type; instead, you needed two commits: one to define the filetypes, and a second to add files of that new type. More theoretically, it caused history-dependence. The validated contents of files in a commit could vary based on the history of commits that led to this one.
 
 Another way source code failed to be self-contained was that it had access to symmetry-breaking information at build-time, namely ship, desk (Urbit's answer to a git branch), and (faked) date. A build recipe should be able to shared, cached, and rerun without dependence on local conditions, so user code now no longer learns its ship, desk, or date until runtime.
 
@@ -115,222 +107,188 @@ If the kernel denies a scry request that user code made during the build process
 
 No build should be killed by the absence of files outside the desk, so as of this update, user code can no longer scry at build time. Once built, userspace programs can scry if run in a context with a scry handler; a Gall agent's runtime scry requests still work just fine.
 
-### Ordered
+\subsection{Order}
 
 The final kind of failure fixed by Ford Fusion was the lack of ordered layering during a software update. The most common form of this failure was that old Ford had a tendency to try to build userspace code using the previous version's standard library. This didn't work too well, unsurprisingly.
 
 Emerging from this underworld required making a number of changes to the Arvo kernel, Clay, Gall, and the procedure for kernel updates. To avoid turning into a pillar of salt, I'll skip the details of how the old system worked and instead describe the new update procedure.
 
-## How Updates Work Now
+
+\section{How Updates Work Now}
 
 These are the layers of the stack that update themselves on the fly, from lowest to highest:
 
-- hoon: the hoon language definition and compiler, defined in `/sys/hoon/hoon`
-- arvo: the arvo kernel proper and related type definitions, in `/sys/arvo/hoon`
-- zuse: the standard library, in `/sys/zuse/hoon`
-- vanes: arvo kernel modules, including clay itself, in folder `/sys/vane`
-- userspace: apps, marks, ancillary source code like libraries, and user data
+\begin{enumerate}
+  \item  \texttt{/sys/hoon}: the Hoon language definition and compiler
+  \item  \texttt{/sys/lull}: common type definitions for Arvo, its vanes, and userspace
+  \item  \texttt{/sys/arvo}: the Arvo kernel proper and related type definitions
+  \item  \texttt{/sys/zuse}: the standard library
+  \item  Vanes: Arvo kernel modules, including Clay itself
+  \item  Userspace:  apps, marks, ancillary source code like libraries, and user data
+\end{enumerate}
 
 An update to one layer necessitates a reload of all layers above it; e.g. a change to Zuse should trigger updates to the vanes and userspace. Conversely, an update to a higher layer should not cause a spurious reload of lower layers, which should not be affected by the change; for example, an update to just userspace should not cause any reloads of system code.
 
-Clay is responsible for enforcing the layering of updates. An update to a module is triggered when an attempt is made to commit a change to Clay that affects one or more files needed to build the module. For example, if the 'foo' agent's source, defined in `/app/foo/hoon`, imports the 'bar' library from `/lib/bar/hoon`, then a modification to `/lib/bar/hoon` triggers an update to the 'foo' agent. All vanes and userspace files depend on Zuse, which depends on the Arvo and Hoon sources, so a change to the Hoon, Arvo, or Zuse sources will trigger updates to all vanes and userspace files.
+Clay is responsible for enforcing the layering of updates. An update to a module is triggered when an attempt is made to commit a change to Clay that affects one or more files needed to build the module. For example, if the \lstinline[style=inlinecode]{foo} agent's source, defined in \lstinline[style=inlinecode]{/app/foo/hoon}, imports the \lstinline[style=inlinecode]{bar} library from \lstinline[style=inlinecode]{/lib/bar/hoon}, then a modification to \lstinline[style=inlinecode]{/lib/bar/hoon} triggers an update to the \lstinline[style=inlinecode]{foo} agent. All vanes and userspace files depend on Zuse, which depends on the Arvo and Hoon sources, so a change to the Hoon, Arvo, or Zuse sources will trigger updates to all vanes and userspace files.
 
-When asked to perform a commit, Clay determines which layers need to be updated based on which files have changed and which modules depend on those files. For now, all running programs load their source from the `%home` desk, so only changes to `%home` trigger stateful updates. Files in other desks can be built, but not installed into the system. This might be relaxed in the future.
+When asked to perform a commit, Clay determines which layers need to be updated based on which files have changed and which modules depend on those files. For now, all running programs load their source from the \lstinline[style=inlinecode]{%base} desk, so only changes to \lstinline[style=inlinecode]{%base} trigger stateful updates. Files in other desks can be built, but not installed into the system. This might be relaxed in the future.
 
 The process of updating varies by layer. The Hoon and Zuse layers are stateless, so their newly rebuilt cores (Nock executables) must be stored (somewhere in the system’s Nock tree, in memory; remember, Urbit is a single-level store), but they have no state that would need to be migrated. The Arvo kernel, vanes, and userspace agents are all live, stateful programs, so in order to update one of those, the system must extract the state from the old program, pass that data into the newly built program, then discard the old program and store the new one. Arvo and agent state injection routines can emit effects, but vane updates cannot.
 
-To work around this limitation, Gall has a two-phase update process. First it enters a dormant “pupal” phase that stores not running agent cores, but only the agent states that the old Gall had extracted from its agents. When Clay notifies Gall that its agents have been rebuilt, Gall “molts” back into normal functionality by loading the agent cores from Clay and then running their `+on-load` routines to inject the old state.
+To work around this limitation, Gall has a two-phase update process. First it enters a dormant ``pupal'' phase that stores not running agent cores, but only the agent states that the old Gall had extracted from its agents. When Clay notifies Gall that its agents have been rebuilt, Gall ``molts'' back into normal functionality by loading the agent cores from Clay and then running their \lstinline[style=inlinecode]{+on-load} routines to inject the old state.\footnote{Including agent state upgrade handling.}
 
-If there's a change to files in `/sys` on the `%home` desk, Clay asks Arvo to update kernelspace. Clay sends a sequence of moves (effects) to Arvo to ask Arvo to perform any necessary updates to hoon, the kernel, Zuse, and vanes. This sequence is terminated by an extra move back to Clay itself, which will be received by the updated version of Clay after migrating its state. The rebuilt Clay can then use the newly rebuilt version of Zuse to rebuild userspace and notify clients of the update. One client is Gall, which molts when Clay notifies it.
+If there's a change to files in \lstinline[style=inlinecode]{/sys} on the \lstinline[style=inlinecode]{%base} desk, Clay asks Arvo to update kernelspace. Clay sends a sequence of moves (effects) to Arvo to ask Arvo to perform any necessary updates to hoon, the kernel, Zuse, and vanes. This sequence is terminated by an extra move back to Clay itself, which will be received by the updated version of Clay after migrating its state. The rebuilt Clay can then use the newly rebuilt version of Zuse to rebuild userspace and notify clients of the update. One client is Gall, which molts when Clay notifies it.
 
 Clay triggers updates, but the Arvo kernel is responsible for performing updates to all kernelspace layers, and Gall is responsible for updating userspace agents. Agents are stored in Gall's state, but all other layers are stored directly in the Arvo core's state, so the Arvo kernel contains the routines that reload Hoon, the kernel itself, Zuse, and the vanes.
 
-The Arvo kernel reloads itself by receiving its new source code as a `%lyra` move from Clay, compiling this source into a core with empty state, then calling the new core's `+load` routine with the relevant parts of the old state. The state passed to the new Arvo now includes not just the vane cores and their states, but also the Arvo "duct" call `stack`, which maintains a stack of queues of moves to be passed from one vane to another, and a list of effects to emit to Unix at the end of the current Arvo event. If needed, Arvo could migrate the outstanding moves themselves -- if, say, the duct datatype changes.
+The Arvo kernel reloads itself by compiling the future version of itself, then calling the new core's \lstinline[style=inlinecode]{+load} routine with the relevant parts of the old state. The state passed to the new Arvo now includes not just the vane cores and their states, but also the Arvo ``duct'' call stack, which maintains a stack of queues of moves to be passed from one vane to another, and a list of effects to emit to Unix at the end of the current Arvo event. If needed, Arvo could migrate the outstanding moves themselves – if, say, the duct datatype changes.
 
 Passing the Arvo call stack state to new Arvo allows a kernel update to happen in the middle of a more complex event without disturbing other sequences of processing steps happening concurrently in the vanes.
 
-This entire update process happens in one Arvo event and doesn’t break event-dispatching semantics. This not only provides atomic rollback, but allows the update to be combined with other actions into a larger transaction -- for example, to stage complex changes, user code could trigger two kernel updates in a row, both in the same event.
+This entire update process happens in one Arvo event and doesn’t break event-dispatching semantics. This not only provides atomic rollback, but allows the update to be combined with other actions into a larger transaction – for example, to stage complex changes, user code could trigger two kernel updates in a row, both in the same event.
 
 Note that this is the opposite situation from the entropically leaking asynchronicity described earlier. Now the guarantees don’t deteriorate; they can be composed into stronger guarantees.
 
-## How Clay Validates a Desk
 
-A desk is Urbit's answer to a git branch. It's almost identical, except all files are typed and validated, and whenever a commit becomes the equivalent of git’s ‘HEAD’, it’s assigned a semantically meaningful revision number, and all files are typed and validated.
+\section{How Clay Validates a Desk}
+
+A desk is Urbit's answer to a Git repository. It's almost identical, except all files are typed and validated, and whenever a commit becomes the equivalent of Git’s \lstinline[style=inlinecode]{HEAD}, it’s assigned a semantically meaningful revision number, and all files are typed and validated.
 
 If Clay has been asked to perform a commit, it needs to validate all the files in this desk and notify all subscribers to live queries of this desk's data. Gall, for example, maintains live queries on builds of its live agents. Validation uses the Ford build system, which as of this update is no longer a standalone vane but a core within Clay.
 
-A Clay commit, like a git commit, is specified as the current value of all its changed files (and, separately, references its parent commits by hash), not as the diff from a parent commit. Unlike git, Clay is typed, and every file must be validated according to its "mark". A mark is named like a file extension, e.g. `%txt`, `%png`, or `%noun`, and Clay maintains a mapping from that name to behaviors of values of that type under various operations. The last segment of any Clay path specifies the mark to use for operations on that file, including validation.
+A Clay commit, like a Git commit, is specified as the current value of all its changed files (and, separately, references its parent commits by hash), not as the diff from a parent commit. Unlike Git, Clay is typed, and every file must be validated according to its "mark". A mark is named like a file extension, e.g. \lstinline[style=inlinecode]{%txt}, \lstinline[style=inlinecode]{%png}, or \lstinline[style=inlinecode]{%noun}, and Clay maintains a mapping from that name to behaviors of values of that type under various operations. The last segment of any Clay path specifies the mark to use for operations on that file, including validation.
 
-Mark operations include conversion to and from other marks (such as converting `%json` to `%txt`), revision control operations (diff, patch, and merge), and validating an untyped noun. Operations for mark `%foo-bar` are defined by a core built using the source code at `/mar/foo-bar/hoon`, or if that doesn't exist, at `/mar/foo/bar/hoon`.
+Mark operations include conversion to and from other marks (such as converting \lstinline[style=inlinecode]{%json} to \lstinline[style=inlinecode]{%txt}), revision control operations (diff, patch, and merge), and validating an untyped noun. Operations for mark \lstinline[style=inlinecode]{%foo-bar} are defined by a core built using the source code at \lstinline[style=inlinecode]{/mar/foo-bar/hoon}, or if that doesn't exist, at \lstinline[style=inlinecode]{/mar/foo/bar/hoon}.
 
-Consider a file at `/web/foo/json`. In order to validate this file, Clay must load the mark definition core and use its validation routine to ensure the untyped value of `/web/foo/json` is in fact valid JSON. To obtain this core, Clay must build the file at `/mar/json/hoon` from source and then process the resulting raw mark core using some mild metaprogramming to get a standard interface core for dealing with marks, called a `\$dais`, whose type is defined in Zuse.
+Consider a file at \lstinline[style=inlinecode]{/web/foo/json}. In order to validate this file, Clay must load the mark definition core and use its validation routine to ensure the untyped value of \lstinline[style=inlinecode]{/web/foo/json} is in fact valid \textsc{json}. To obtain this core, Clay must build the file at \lstinline[style=inlinecode]{/mar/json/hoon} from source and then process the resulting raw mark core using some mild metaprogramming to get a standard interface core for dealing with marks, called a \lstinline[style=inlinecode]{$dais}, whose type is defined in Zuse.
 
-Since building a source file only makes sense if the file has been validated as a `%hoon` file, but mark definitions themselves must be built from source, there's a logical dependency cycle -- who validates the validators? To break this cycle, Clay hard-codes the validation of `%hoon` files. This allows mark definitions to be built from source, and in fact any file can depend on any other file of any mark as long as there are no cycles. As of Ford Fusion, Ford performs a cycle check to ensure acyclicity.
+Since building a source file only makes sense if the file has been validated as a \lstinline[style=inlinecode]{%hoon} file, but mark definitions themselves must be built from source, there's a logical dependency cycle – who validates the validators? To break this cycle, Clay hard-codes the validation of \lstinline[style=inlinecode]{%hoon} files. This allows mark definitions to be built from source, and in fact any file can depend on any other file of any mark as long as there are no cycles. As of Ford Fusion, Ford performs a cycle check to ensure acyclicity.
 
 Since building a file is a pure function, Clay memoizes the results of all builds, including builds of marks, mark conversions, and hoon source files. These memoization results are stored along with the desk and are used by later revisions of that desk. Future work should allow merge commits to pull memoized builds from all parents, but for now only the previous revision of the current desk is used. This is a major simplification of previous Ford architectures, which maintained much more complex caches with less clear eviction semantics. Now on every commit, we just throw away any unused memoized builds from the previous revision's Ford cache.
 
 Once Clay has validated every file in this new revision of a desk, it constructs and sends updates to any subscriptions that other vanes or agents have requested. More Ford builds may be run to fulfill these requests, including builds for any running agents whose dependencies changed in this commit.
 
-When Gall receives a newly rebuilt agent from Clay, it calls the gate produced by the `+on-load` arm of the new agent with the state extracted from the old agent. If there is a crash in any `+on-load` calls or in the handling of any effects they emit (which can include more agent activations), then the whole event crashes, canceling the commit. This effectively gives any agent the ability to abort a commit by crashing.
+When Gall receives a newly rebuilt agent from Clay, it calls the gate produced by the \lstinline[style=inlinecode]{+on-load} arm of the new agent with the state extracted from the old agent. If there is a crash in any \lstinline[style=inlinecode]{+on-load} calls or in the handling of any effects they emit (which can include more agent activations), then the whole event crashes, canceling the commit. This effectively gives any agent the ability to abort a commit by crashing.
 
-It is a bit counterintuitive that an app reload failure could prevent a kernel update. The reason is that we don't want the system to update itself into a broken state. An Urbit can be rendered practically unusable by the presence of broken agents, even if the kernel hasn't lost integrity,
-so it's kinder to the user not to break their agents by installing an incompatible kernel update. This also puts virtuous pressure on kernel developers not to "break userspace", the importance of which has been insisted on for decades by Linus Torvalds, among others.
+It is a bit counterintuitive that an app reload failure could prevent a kernel update. The reason is that we don't want the system to update itself into a broken state. An Urbit can be rendered practically unusable by the presence of broken agents, even if the kernel hasn't lost integrity, so it's kinder to the user not to break their agents by installing an incompatible kernel update. This also puts virtuous pressure on kernel developers not to ``break userspace'', the importance of which has been insisted on for decades by Linus Torvalds, among others.
 
 If an agent does crash a commit event that included a kernel update, the attempted commit is now trivially rolled back, and the system can deliver an error message to the user. This does not leave the system in an inconsistent or stuck state, so the user could modify the failing agent and try the kernel update again later. Supporting better workflows for keeping third-party agents up-to-date will be an important aspect of Urbit’s upcoming software distribution work.
 
-## Ford Build Semantics
 
-### The Three Types of Ford Builds: Files, Marks, and Casts
+\section{Ford Build Semantics}
+
+\subsection{The Three Types of Ford Builds: Files, Marks, and Casts}
 
 The Ford build semantics have been simplified. There are now three kinds of builds that Ford can perform: files, marks, and casts, all of which happen synchronously as function calls inside Clay and are available (without memoization) as scry interfaces.
 
-#### File Builds
+\subsubsection{File Builds}
 
-A file build takes in a filepath containing Ford runes and Hoon source, runs the Ford runes to perform imports, and then compiles the source, producing a `$vase`, a noun tagged with its Hoon type.
+A file build takes in a filepath containing Ford runes and Hoon source, runs the Ford runes to perform imports, and then compiles the source, producing a \lstinline[style=inlinecode]{$vase}, a noun tagged with its Hoon type.
 
-Clay exposes file builds into the scry namespace with `%ca`: as an example, `.^(vase %ca /~zod/home/3/lib/sole/hoon)` will build the `sole` library.
+Clay exposes file builds into the scry namespace with \lstinline[style=inlinecode]{%ca}: as an example, \lstinline[style=inlinecode]{.^(vase %ca /~zod/home/3/lib/sole/hoon)} will build the \lstinline[style=inlinecode]{sole} library.
 
-#### Mark Builds
+\subsubsection{Mark Builds}
 
-A mark build produces a `$dais` mark-interface core. It first performs a file build on the Hoon file in `/mar` that defines the mark core, then it does some metaprogramming to make the operations more convenient to use. If the raw mark core delegated revision control operations to another mark core, the mark build will also load the delegate mark core and resolve the result into the `$dais`.
+A mark build produces a \lstinline[style=inlinecode]{$dais} mark-interface core. It first performs a file build on the Hoon file in \lstinline[style=inlinecode]{/mar} that defines the mark core, then it does some metaprogramming to make the operations more convenient to use. If the raw mark core delegated revision control operations to another mark core, the mark build will also load the delegate mark core and resolve the result into the \lstinline[style=inlinecode]{$dais}.
 
-Clay exposes mark builds into the scry namespace with `%cb`: as an example, `.^(dais:clay %cb /~zod/home/3/mar/foo/hoon)` builds a `$dais` for the `%foo` mark.
+Clay exposes mark builds into the scry namespace with \lstinline[style=inlinecode]{%cb}: as an example, \lstinline[style=inlinecode]{.^(dais:clay %cb /~zod/home/3/mar/foo/hoon)} builds a \lstinline[style=inlinecode]{$dais} for the \lstinline[style=inlinecode]{%foo} mark.
 
-#### Cast Builds
+\subsubsection{Cast Builds}
 
-A cast build produces a `$tube`: a gate that takes a value of one mark as input and converts it to a valid value of another mark or crashes. To convert from mark `%foo` to mark `%bar`, Clay tries the following operations, in order:
+A cast build produces a \lstinline[style=inlinecode]{$tube}: a gate that takes a value of one mark as input and converts it to a valid value of another mark or crashes. To convert from mark \lstinline[style=inlinecode]{%foo} to mark \lstinline[style=inlinecode]{%bar}, Clay tries the following operations, in order:
 
-- direct grow from `%foo`
-- direct grab from `%bar`
-- indirect jump from `%foo` through `%qux`
-- indirect grab from `%bar` through `%qux`
+\begin{enumerate}
+  \item  direct grow from `%foo`
+  \item  direct grab from `%bar`
+  \item  indirect jump from `%foo` through `%qux`
+  \item  indirect grab from `%bar` through `%qux`
+\end{enumerate}
 
-The `%foo` mark can “grow to” `%bar` by providing an arm in its `+grow` core named `+bar`. `%bar` can convert from `%foo` using a `+foo` arm in its `+grab` core. `%foo` can also chain a conversion through an intermediary using an arm in its `+jump` core, and `%bar` can specify an “indirect grab” by having a `+grab` arm produce a delegate mark instead of directly defining a conversion gate.
+The \lstinline[style=inlinecode]{%foo} mark can ``grow to'' \lstinline[style=inlinecode]{%bar} by providing an arm in its \lstinline[style=inlinecode]{+grow} core named \lstinline[style=inlinecode]{+bar}. \lstinline[style=inlinecode]{%bar} can convert from \lstinline[style=inlinecode]{%foo} using a \lstinline[style=inlinecode]{+foo} arm in its \lstinline[style=inlinecode]{+grab} core. \lstinline[style=inlinecode]{%foo} can also chain a conversion through an intermediary using an arm in its \lstinline[style=inlinecode]{+jump} core, and \lstinline[style=inlinecode]{%bar} can specify an ``indirect grab'' by having a \lstinline[style=inlinecode]{+grab} arm produce a delegate mark instead of directly defining a conversion gate.
 
-Clay exposes cast builds into the scry namespace with `%cc`: as an example, `.^(tube:clay %cc /~zod/home/3/foo/bar)` builds a `$tube` conversion gate from `%foo` to `%bar`.
+Clay exposes cast builds into the scry namespace with \lstinline[style=inlinecode]{%cc}: as an example, \lstinline[style=inlinecode]{.^(tube:clay %cc /~zod/home/3/foo/bar)} builds a \lstinline[style=inlinecode]{$tube} conversion gate from \lstinline[style=inlinecode]{%foo} to \lstinline[style=inlinecode]{%bar}.
 
-### Ford Runes
+\subsection{Ford Runes}
 
-There are now only four Ford runes. A file can contain zero, one, or many of each, but each Ford expression can only be one line, and they must be in the standard order of `/-`s, `/+`s, `/=`s, and then `/*`s.
+There are now only seven Ford runes. A file can contain zero, one, or many of each, but each Ford expression can only be one line, and they must be in the standard order of \lstinline[style=inlinecode]{/-}s, \lstinline[style=inlinecode]{/+}s, \lstinline[style=inlinecode]{/=}s, and then \lstinline[style=inlinecode]{/*}s.
 
-```
+\begin{lstlisting}[style=listingcode]
 /-  foo, *bar, baz=qux
-```
+\end{lstlisting}
 
-The `/-` rune imports a structures file from `/sur`. You can import it as just `foo`, in which case the build result of that file (usually a core with mold definitions) will be pinned into the compilation subject with the face `foo`. If you prefix it with a `*` as in `*bar`, the result will be pinned into the subject with no face; if the structures file compiled to a core, this exposes all the arms into the namespace of the compilation subject. Finally, if you import it as `baz=qux`, the `baz` face will be applied instead of `qux`. This is similar to "import as" in other languages.
+The \lstinline[style=inlinecode]{/-} rune imports a structures file from \lstinline[style=inlinecode]{/sur}. You can import it as just \lstinline[style=inlinecode]{foo}, in which case the build result of that file (usually a core with mold definitions) will be pinned into the compilation subject with the face \lstinline[style=inlinecode]{foo}. If you prefix it with a \lstinline[style=inlinecode]{*} as in \lstinline[style=inlinecode]{*bar}, the result will be pinned into the subject with no face; if the structures file compiled to a core, this exposes all the arms into the namespace of the compilation subject. Finally, if you import it as \lstinline[style=inlinecode]{baz=qux}, the \lstinline[style=inlinecode]{baz} face will be applied instead of \lstinline[style=inlinecode]{qux}. This is similar to ``import as'' in other languages.
 
-```
+\begin{lstlisting}[style=listingcode]
 /+  foo, *bar, baz=qux
-```
+\end{lstlisting}
 
-The `/+` rune imports a library file from `/lib`. Aside from the different source folder, the syntax and semantics are the same as for `/-`.
+The \lstinline[style=inlinecode]{/+} rune imports a library file from \lstinline[style=inlinecode]{/lib}. Aside from the different source folder, the syntax and semantics are the same as for \lstinline[style=inlinecode]{/-}.
 
-```
+\begin{lstlisting}[style=listingcode]
 /=  clay-raw  /sys/vane/clay
-```
+\end{lstlisting}
 
-The `/=` rune imports the result of building a hoon file from a user-specified path (the second argument), wrapping it in a face specified by the first argument. The final `/hoon` at the end of the path must be omitted. This is mostly useful for importing a file for testing. The file at the specified path will be built as a normal userspace hoon file; i.e. its compilation subject will be Zuse augmented with the results of any Ford runes it has at the top of the file.
+The \lstinline[style=inlinecode]{/=} rune imports the result of building a hoon file from a user-specified path (the second argument), wrapping it in a face specified by the first argument. The final \lstinline[style=inlinecode]{/hoon} at the end of the path must be omitted. This is mostly useful for importing a file for testing. The file at the specified path will be built as a normal userspace hoon file; i.e. its compilation subject will be Zuse augmented with the results of any Ford runes it has at the top of the file.
 
-```
+\begin{lstlisting}[style=listingcode]
 /*  hello-gen  %hoon  /gen/hello/hoon
-```
+\end{lstlisting}
 
-The `/*` rune imports the contents of a file in the desk, specified as the third argument with the full path including the trailing mark, converted to the mark specified by the second argument, and pinned into the compilation subject wrapped in the face specified by the first argument. This can be used to import static data at build-time, such as a data file, a media file, or, in the case of this example, a hoon file as source text rather than already built.
+The \lstinline[style=inlinecode]{/*} rune imports the contents of a file in the desk, specified as the third argument with the full path including the trailing mark, converted to the mark specified by the second argument, and pinned into the compilation subject wrapped in the face specified by the first argument. This can be used to import static data at build-time, such as a data file, a media file, or, in the case of this example, a hoon file as source text rather than already built.
 
-A valid userspace hoon file must contain a nonempty list of hoons (hoon source expressions) below the Ford runes, separated by gap (more than one space, or at least one newline). The system wraps this list of hoons in a `=~` expression so that the result of the previous hoon is used as the subject of the next hoon. The result of the Ford runes is used as the compilation subject for this `=~` hoon; informally, the shape of the compilation subject can be thought of as:
+A valid userspace hoon file must contain a nonempty list of hoons (hoon source expressions) below the Ford runes, separated by gap (more than one space, or at least one newline). The system wraps this list of hoons in a \lstinline[style=inlinecode]{=~} expression so that the result of the previous hoon is used as the subject of the next hoon. The result of the Ford runes is used as the compilation subject for this \lstinline[style=inlinecode]{=~} hoon; informally, the shape of the compilation subject can be thought of as:
 
-```
+\begin{lstlisting}[style=listingcode]
 :*  fastar-2  fastar-1
     fastis-2  fastis-1
     faslus-2  faslus-1
     fashep-2  fashep-1
     <zuse>
 ==
-```
-
-## Future Work
-
-Urbit still needs to make better use of desks other than `\%home` and the development process should be adjusted given the tighter coupling between source code and kernel and tighter criteria for accepting an update.
-
-This work also hopefully provides a good foundation of a package management and software distribution system for Urbit. As `~wicdev-wisryt` has said, a user should be able to run `|install ~norsyr-torryn/canvas` to load and build remote source. No one should experience dependency hell on Urbit, but we're not there yet.
-
-At least now, building a desk has no dependencies, other than a Ford with a compatible Hoon compiler. No decisions have been made on this yet, but
-Ford might get moved to inside the desk, possibly by making Zuse callable. This could allow a desk to expose a Nock interface in addition to a typed Hoon interface, which could even let a desk be used as a "pill" bootloader.
-
-## Conclusion
-
-`~littel-ponnys` and I spent most of 2018 rewriting Ford with the intent of improving its performance. Compared to its predecessor, its result was better in some ways but worse in others. The caching system was labyrinthine and poorly factored, making the system difficult to debug or prove correct, even informally. Some things were faster, but the caching and dependency tracking were actually complex enough that a number of common operations, like mark conversion, were too slow.
-
-In early 2020, `~master-morzod` suggested moving Ford into Clay to reduce asynchronicity. It seemed absurd at first, but at some point I realized I could combine that idea with a simpler build-caching scheme and self-contained desk builds, and `~wicdev-wisryt` realized he could use that to further simplify Clay’s commit and merge code, which he did as part of this project.
-
-The first time I rewrote Ford, it took me six months, with help from `~littel-ponnys`, and it weighed in at 6,000 lines of code. The second time, in late 2018, took a few weeks. The third time, in January 2020, took a week. I wrote `+ford` in Ford Fusion in one long day, and it’s about 500 lines of synchronous, functional code.
-
-It has taken me two or three years to understand this problem as well as I do, and I expect there are parts of it I still don’t understand. The code itself isn’t the issue; it’s finding the right answer to ontological and teleological questions. What _is_ Ford? What will it be in a hundred years? I’m confident Ford Fusion is more similar than its predecessor to the Ford of 2120, because it’s smaller, more functional, and easier to understand and administer.
-
-As an engineering discipline and organizational practice, working on a system intended to be frozen yields surprising simplifications like this every so often. Urbit is now reaching the point where we’re starting to see more of the obsidian edges of the frozen future system emerge from the lava.
-\section{Background and Literature}
-
-Exposite the relevant background and literature.
-
-\begin{enumerate}
-  \item  Prefer to \texttt{enumerate}.
-  \item  It is easier to refer to than \texttt{itemize}.
-\end{enumerate}
-
-\noindent
-Mark \texttt{\textbackslash noindent} in paragraphs that continue the thought of an \texttt{\textbackslash enumerate} block.
-
-\section{Urbit's Implementation}
-
-Oftentimes you will then turn to exploring how Urbit or closely related systems like Nockchain have approached or considered a problem.
-
-\lstset{language=C}
-\begin{lstlisting}
-#include <stdio.h>
-
-double compute(float a, float b) {
-    return a * a + b * b;
-}
-
-int main() {
-    float x = 2.5;
-    float y = 3.7;
-
-    double result = compute(x, y);
-
-    printf("Result: %lf\n", result);
-
-    return 0;
-}
 \end{lstlisting}
 
-\noindent
-That code snippet was part of the text, and not a standalone entity to which we make separate repeated reference.
+\begin{lstlisting}[style=listingcode]
+  /$  some-face  %from-mark  %to-mark
+\end{lstlisting}
 
-\begin{figure}
-  \begin{lstlisting}[language=Python, caption={Example Python Code}, label={lst:example}]
-  def hello_world():
-      print("Hello, world!")
-  \end{lstlisting}
-\end{figure}
+The \lstinline[style=inlinecode]{/$} rune imports a mark conversion gate between two types.  These are marks on the same desk as the file.
 
-Refer to the code listing: Listing~\ref{lst:example}.  (Note that we don't suppress indentation since it's a float.)
+\begin{lstlisting}[style=listingcode]
+  /~  some-face  some-type  /some/directory
+\end{lstlisting}
+
+The \lstinline[style=inlinecode]{/~} rune imports, builds, evaluates, and pins the results of many \lstinline[style=inlinecode]{hoon} files in a directory.  Each hoon file in the specified directory will be built and evaluated. The result of evaluating each file will be added to a \lstinline[style=inlinecode]{++map} and pinned with the specified face \lstinline[style=inlinecode]{some-face}. The keys of the map will be the name of each file, and the values of the map will be the result of evaluating each file and casting its result to the type specified \lstinline[style=inlinecode]{some-type}.
+
+All of the \lstinline[style=inlinecode]{hoon} files in the specified directory, when evaluated, must produce data of a type that nests under the type specified \lstinline[style=inlinecode]{some-type}. File with a mark other than \lstinline[style=inlinecode]{%hoon} will be ignored.
+
+\begin{lstlisting}[style=listingcode]
+  /%  some-face  %some-mark
+\end{lstlisting}
+
+The \lstinline[style=inlinecode]{/%} rune imports a mark definition from the \lstinline[style=inlinecode]{/mar} directory.  The mark definition will be built and pinned with the specified face \lstinline[style=inlinecode]{some-face}.
 
 
-\section{A Wild Ernest Appears}
+\section{Future Work}
 
-You can have as many sections as make sense.  Only sections and subsections appear in the table of contents.
+Urbit still needs to make better use of desks other than \lstinline[style=inlinecode]{%base} and the development process should be adjusted given the tighter coupling between source code and kernel and tighter criteria for accepting an update.
+
+This work also hopefully provides a good foundation of a package management and software distribution system for Urbit. As \patp{wicdev-wisryt} has said, a user should be able to run \lstinline[style=inlinecode]{|install ~norsyr-torryn %canvas} to load and build remote source. No one should experience dependency hell on Urbit, but we're not there yet.
+
+At least now, building a desk has no dependencies, other than a Ford with a compatible Hoon compiler. No decisions have been made on this yet, but Ford might get moved to inside the desk, possibly by making Zuse callable. This could allow a desk to expose a Nock interface in addition to a typed Hoon interface, which could even let a desk be used as a ``pill'' bootloader.
+
 
 \section{Conclusion}
 
-To summarize, why did you write it?  Why do we care?  What impact should it have on Urbit development?
+\patp{littel-ponnys} and I (\patp{rovnys-ricfer}) spent most of 2018 rewriting Ford with the intent of improving its performance. Compared to its predecessor, its result was better in some ways but worse in others. The caching system was labyrinthine and poorly factored, making the system difficult to debug or prove correct, even informally. Some things were faster, but the caching and dependency tracking were actually complex enough that a number of common operations, like mark conversion, were too slow.
 
-Your bibliography is a separate BibTeX file.  We use the \texttt{plainnat} bibliography style.  You can use \texttt{natbib} citation commands like \texttt{\textbackslash citep\{wikipedia\}} for parenthesized references.  Use \texttt{\textbackslash citet\{wikipedia\}} for inline references.  You can also use \texttt{\textbackslash citeauthor\{wikipedia\}} for the principal author's name.
+In early 2020, \patp{master-morzod} suggested moving Ford into Clay to reduce asynchronicity. It seemed absurd at first, but at some point I realized I could combine that idea with a simpler build-caching scheme and self-contained desk builds, and \patp{wicdev-wisryt} realized he could use that to further simplify Clay’s commit and merge code, which he did as part of this project.
 
-``You can use traditional TeX---or LaTeX---representations'' \citep{Varney1987}.
+The first time I rewrote Ford, it took me six months, with help from \patp{littel-ponnys}, and it weighed in at 6,000 lines of code. The second time, in late 2018, took a few weeks. The third time, in January 2020, took a week. I wrote \lstinline[style=inlinecode]{+ford} in Ford Fusion in one long day, and it’s about 500 lines of synchronous, functional code.
 
-“Or you can use fancy quotes—and symbols.”
+It has taken me two or three years to understand this problem as well as I do, and I expect there are parts of it I still don’t understand. The code itself isn’t the issue; it’s finding the right answer to ontological and teleological questions. What \emph{is} Ford? What will it be in a hundred years? I’m confident Ford Fusion is more similar than its predecessor to the Ford of 2120, because it’s smaller, more functional, and easier to understand and administer.
 
-\bibliographystyle{plainnat}
-\bibliography{ernest}
+As an engineering discipline and organizational practice, working on a system intended to be frozen yields surprising simplifications like this every so often. Urbit is now reaching the point where we’re starting to see more of the obsidian edges of the frozen future system emerge from the lava.\tombstone{}
+
+\selectlanguage{USenglish}
+\printbibliography
 \end{document}
