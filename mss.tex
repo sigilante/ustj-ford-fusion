@@ -16,8 +16,8 @@
 \fancyhead{}
 \fancyfoot[L]{{\footnotesize
               %% We toggle between these:
-              Manuscript submitted for review.\\
-              % {\it Urbit Systems Technical Journal} I:1 (2024):  1–3. \\
+              % Manuscript submitted for review.\\
+              {\it Urbit Systems Technical Journal} I:2 (2024):  87–102. \\
               ~ \\
               Address author correspondence to \authorpatp.
               }}
@@ -44,7 +44,7 @@
 
 % We will adjust page numbering in final editing.
 \pagenumbering{arabic}
-\setcounter{page}{1}
+\setcounter{page}{87}
 
 \tableofcontents
 
@@ -97,11 +97,11 @@ An Urbit ship is not an enterprise SaaS product and does not need to run in this
 
 \subsection{Self-Containment}
 
-Before Ford Fusion, each commit to the Clay filesystem validated its files using filetypes (called ``marks'') defined by files in the previous commit.\footnote{See \patp{lagrev-nocfep}, pp. TODO, this issue.} This could cause bugs if the filetype definitions had changed in a backward-incompatible manner. It also meant a commit could not add both a new filetype and new files of that type; instead, you needed two commits: one to define the filetypes, and a second to add files of that new type. More theoretically, it caused history-dependence. The validated contents of files in a commit could vary based on the history of commits that led to this one.
+Before Ford Fusion, each commit to the Clay filesystem validated its files using filetypes (called ``marks'') defined by files in the previous commit (see \citet{Davis2024}, pp. 33–48 in this issue). This could cause bugs if the filetype definitions had changed in a backward-incompatible manner. It also meant a commit could not add both a new filetype and new files of that type; instead, you needed two commits: one to define the filetypes, and a second to add files of that new type. More theoretically, it caused history-dependence. The validated contents of files in a commit could vary based on the history of commits that led to this one.
 
-Another way source code failed to be self-contained was that it had access to symmetry-breaking information at build-time, namely ship, desk (Urbit's answer to a git branch), and (faked) date. A build recipe should be able to shared, cached, and rerun without dependence on local conditions, so user code now no longer learns its ship, desk, or date until runtime.
+Another way source code failed to be self-contained was that it had access to symmetry-breaking information at build-time, namely ship, desk (Urbit's answer to a \textsc{git} branch), and (faked) date. A build recipe should be able to shared, cached, and rerun without dependence on local conditions, so user code now no longer learns its ship, desk, or date until runtime.
 
-Source code also had build-time access to Urbit's immutable global namespace, called the “scry namespace”, which the kernel makes available as an implicit argument to userspace Hoon code. The scry namespace is immutable and referentially transparent, i.e. a request must always yield the same result for all time, but if an agent asks the kernel for a resource that’s from the future, hosted on another ship, or to which that agent doesn’t have permission, the kernel will deny the request.
+Source code also had build-time access to Urbit's immutable global namespace, called the “scry namespace”, which the kernel makes available as an implicit argument to userspace Hoon code. The scry namespace is immutable and referentially transparent, i.e., a request must always yield the same result for all time, but if an agent asks the kernel for a resource that’s from the future, hosted on another ship, or to which that agent doesn’t have permission, the kernel will deny the request.
 
 If the kernel denies a scry request that user code made during the build process, the build system has no choice but to treat it as a nondeterministic error. Nondeterministic errors can never be fully eradicated, if for no other reason than that the user always has the option to defenestrate the machine—there's nothing deterministic about that. But we try to minimize them, and especially to minimize uncertainty as to under what conditions they might occur.
 
@@ -127,7 +127,7 @@ These are the layers of the stack that update themselves on the fly, from lowest
   \item  Userspace:  apps, marks, ancillary source code like libraries, and user data
 \end{enumerate}
 
-An update to one layer necessitates a reload of all layers above it; e.g. a change to Zuse should trigger updates to the vanes and userspace. Conversely, an update to a higher layer should not cause a spurious reload of lower layers, which should not be affected by the change; for example, an update to just userspace should not cause any reloads of system code.
+An update to one layer necessitates a reload of all layers above it; e.g., a change to Zuse should trigger updates to the vanes and userspace. Conversely, an update to a higher layer should not cause a spurious reload of lower layers, which should not be affected by the change; for example, an update to just userspace should not cause any reloads of system code.
 
 Clay is responsible for enforcing the layering of updates. An update to a module is triggered when an attempt is made to commit a change to Clay that affects one or more files needed to build the module. For example, if the \lstinline[style=inlinecode]{foo} agent's source, defined in \lstinline[style=inlinecode]{/app/foo/hoon}, imports the \lstinline[style=inlinecode]{bar} library from \lstinline[style=inlinecode]{/lib/bar/hoon}, then a modification to \lstinline[style=inlinecode]{/lib/bar/hoon} triggers an update to the \lstinline[style=inlinecode]{foo} agent. All vanes and userspace files depend on Zuse, which depends on the Arvo and Hoon sources, so a change to the Hoon, Arvo, or Zuse sources will trigger updates to all vanes and userspace files.
 
@@ -137,7 +137,7 @@ The process of updating varies by layer. The Hoon and Zuse layers are stateless,
 
 To work around this limitation, Gall has a two-phase update process. First it enters a dormant ``pupal'' phase that stores not running agent cores, but only the agent states that the old Gall had extracted from its agents. When Clay notifies Gall that its agents have been rebuilt, Gall ``molts'' back into normal functionality by loading the agent cores from Clay and then running their \lstinline[style=inlinecode]{+on-load} routines to inject the old state.\footnote{Including agent state upgrade handling.}
 
-If there's a change to files in \lstinline[style=inlinecode]{/sys} on the \lstinline[style=inlinecode]{%base} desk, Clay asks Arvo to update kernelspace. Clay sends a sequence of moves (effects) to Arvo to ask Arvo to perform any necessary updates to hoon, the kernel, Zuse, and vanes. This sequence is terminated by an extra move back to Clay itself, which will be received by the updated version of Clay after migrating its state. The rebuilt Clay can then use the newly rebuilt version of Zuse to rebuild userspace and notify clients of the update. One client is Gall, which molts when Clay notifies it.
+If there's a change to files in \lstinline[style=inlinecode]{/sys} on the \lstinline[style=inlinecode]{%base} desk, Clay asks Arvo to update kernelspace. Clay sends a sequence of moves (effects) to Arvo to ask Arvo to perform any necessary updates to Hoon, the kernel, Zuse, and vanes. This sequence is terminated by an extra move back to Clay itself, which will be received by the updated version of Clay after migrating its state. The rebuilt Clay can then use the newly rebuilt version of Zuse to rebuild userspace and notify clients of the update. One client is Gall, which molts when Clay notifies it.
 
 Clay triggers updates, but the Arvo kernel is responsible for performing updates to all kernelspace layers, and Gall is responsible for updating userspace agents. Agents are stored in Gall's state, but all other layers are stored directly in the Arvo core's state, so the Arvo kernel contains the routines that reload Hoon, the kernel itself, Zuse, and the vanes.
 
@@ -156,7 +156,7 @@ A desk is Urbit's answer to a Git repository. It's almost identical, except all 
 
 If Clay has been asked to perform a commit, it needs to validate all the files in this desk and notify all subscribers to live queries of this desk's data. Gall, for example, maintains live queries on builds of its live agents. Validation uses the Ford build system, which as of this update is no longer a standalone vane but a core within Clay.
 
-A Clay commit, like a Git commit, is specified as the current value of all its changed files (and, separately, references its parent commits by hash), not as the diff from a parent commit. Unlike Git, Clay is typed, and every file must be validated according to its "mark". A mark is named like a file extension, e.g. \lstinline[style=inlinecode]{%txt}, \lstinline[style=inlinecode]{%png}, or \lstinline[style=inlinecode]{%noun}, and Clay maintains a mapping from that name to behaviors of values of that type under various operations. The last segment of any Clay path specifies the mark to use for operations on that file, including validation.
+A Clay commit, like a Git commit, is specified as the current value of all its changed files (and, separately, references its parent commits by hash), not as the diff from a parent commit. Unlike Git, Clay is typed, and every file must be validated according to its "mark". A mark is named like a file extension, e.g., \lstinline[style=inlinecode]{%txt}, \lstinline[style=inlinecode]{%png}, or \lstinline[style=inlinecode]{%noun}, and Clay maintains a mapping from that name to behaviors of values of that type under various operations. The last segment of any Clay path specifies the mark to use for operations on that file, including validation.
 
 Mark operations include conversion to and from other marks (such as converting \lstinline[style=inlinecode]{%json} to \lstinline[style=inlinecode]{%txt}), revision control operations (diff, patch, and merge), and validating an untyped noun. Operations for mark \lstinline[style=inlinecode]{%foo-bar} are defined by a core built using the source code at \lstinline[style=inlinecode]{/mar/foo-bar/hoon}, or if that doesn't exist, at \lstinline[style=inlinecode]{/mar/foo/bar/hoon}.
 
@@ -164,7 +164,7 @@ Consider a file at \lstinline[style=inlinecode]{/web/foo/json}. In order to vali
 
 Since building a source file only makes sense if the file has been validated as a \lstinline[style=inlinecode]{%hoon} file, but mark definitions themselves must be built from source, there's a logical dependency cycle – who validates the validators? To break this cycle, Clay hard-codes the validation of \lstinline[style=inlinecode]{%hoon} files. This allows mark definitions to be built from source, and in fact any file can depend on any other file of any mark as long as there are no cycles. As of Ford Fusion, Ford performs a cycle check to ensure acyclicity.
 
-Since building a file is a pure function, Clay memoizes the results of all builds, including builds of marks, mark conversions, and hoon source files. These memoization results are stored along with the desk and are used by later revisions of that desk. Future work should allow merge commits to pull memoized builds from all parents, but for now only the previous revision of the current desk is used. This is a major simplification of previous Ford architectures, which maintained much more complex caches with less clear eviction semantics. Now on every commit, we just throw away any unused memoized builds from the previous revision's Ford cache.
+Since building a file is a pure function, Clay memoizes the results of all builds, including builds of marks, mark conversions, and Hoon source files. These memoization results are stored along with the desk and are used by later revisions of that desk. Future work should allow merge commits to pull memoized builds from all parents, but for now only the previous revision of the current desk is used. This is a major simplification of previous Ford architectures, which maintained much more complex caches with less clear eviction semantics. Now on every commit, we just throw away any unused memoized builds from the previous revision's Ford cache.
 
 Once Clay has validated every file in this new revision of a desk, it constructs and sends updates to any subscriptions that other vanes or agents have requested. More Ford builds may be run to fulfill these requests, including builds for any running agents whose dependencies changed in this commit.
 
@@ -185,13 +185,15 @@ The Ford build semantics have been simplified. There are now three kinds of buil
 
 A file build takes in a filepath containing Ford runes and Hoon source, runs the Ford runes to perform imports, and then compiles the source, producing a \lstinline[style=inlinecode]{$vase}, a noun tagged with its Hoon type.
 
-Clay exposes file builds into the scry namespace with \lstinline[style=inlinecode]{%ca}: as an example, \lstinline[style=inlinecode]{.^(vase %ca /~zod/home/3/lib/sole/hoon)} will build the \lstinline[style=inlinecode]{sole} library.
+\sloppy
+Clay exposes file builds into the scry \mbox{namespace} with \lstinline[style=inlinecode]{%ca}: as an example, \lstinline[style=inlinecode]{.^(vase %ca /~zod/base/3} \lstinline[style=inlinecode]{/lib/sole/hoon)} will build the \lstinline[style=inlinecode]{sole} library.
 
 \subsubsection{Mark Builds}
 
 A mark build produces a \lstinline[style=inlinecode]{$dais} mark-interface core. It first performs a file build on the Hoon file in \lstinline[style=inlinecode]{/mar} that defines the mark core, then it does some metaprogramming to make the operations more convenient to use. If the raw mark core delegated revision control operations to another mark core, the mark build will also load the delegate mark core and resolve the result into the \lstinline[style=inlinecode]{$dais}.
 
-Clay exposes mark builds into the scry namespace with \lstinline[style=inlinecode]{%cb}: as an example, \lstinline[style=inlinecode]{.^(dais:clay %cb /~zod/home/3/mar/foo/hoon)} builds a \lstinline[style=inlinecode]{$dais} for the \lstinline[style=inlinecode]{%foo} mark.
+\sloppy
+Clay exposes mark builds into the scry \mbox{namespace} with \lstinline[style=inlinecode]{%cb}: as an example, \lstinline[style=inlinecode]{.^(dais:clay %cb /~zod/base/3} \lstinline[style=inlinecode]{/mar/foo/hoon)} builds a \lstinline[style=inlinecode]{$dais} for the \lstinline[style=inlinecode]{%foo} mark.
 
 \subsubsection{Cast Builds}
 
@@ -206,7 +208,8 @@ A cast build produces a \lstinline[style=inlinecode]{$tube}: a gate that takes a
 
 The \lstinline[style=inlinecode]{%foo} mark can ``grow to'' \lstinline[style=inlinecode]{%bar} by providing an arm in its \lstinline[style=inlinecode]{+grow} core named \lstinline[style=inlinecode]{+bar}. \lstinline[style=inlinecode]{%bar} can convert from \lstinline[style=inlinecode]{%foo} using a \lstinline[style=inlinecode]{+foo} arm in its \lstinline[style=inlinecode]{+grab} core. \lstinline[style=inlinecode]{%foo} can also chain a conversion through an intermediary using an arm in its \lstinline[style=inlinecode]{+jump} core, and \lstinline[style=inlinecode]{%bar} can specify an ``indirect grab'' by having a \lstinline[style=inlinecode]{+grab} arm produce a delegate mark instead of directly defining a conversion gate.
 
-Clay exposes cast builds into the scry namespace with \lstinline[style=inlinecode]{%cc}: as an example, \lstinline[style=inlinecode]{.^(tube:clay %cc /~zod/home/3/foo/bar)} builds a \lstinline[style=inlinecode]{$tube} conversion gate from \lstinline[style=inlinecode]{%foo} to \lstinline[style=inlinecode]{%bar}.
+\sloppy
+Clay exposes cast builds into the scry namespace with \lstinline[style=inlinecode]{%cc}: as an example, \lstinline[style=inlinecode]{.^(tube:clay %cc /~zod/base/3} \lstinline[style=inlinecode]{/foo/bar)} builds a \lstinline[style=inlinecode]{$tube} conversion gate from \lstinline[style=inlinecode]{%foo} to \lstinline[style=inlinecode]{%bar}.
 
 \subsection{Ford Runes}
 
@@ -228,15 +231,15 @@ The \lstinline[style=inlinecode]{/+} rune imports a library file from \lstinline
 /=  clay-raw  /sys/vane/clay
 \end{lstlisting}
 
-The \lstinline[style=inlinecode]{/=} rune imports the result of building a hoon file from a user-specified path (the second argument), wrapping it in a face specified by the first argument. The final \lstinline[style=inlinecode]{/hoon} at the end of the path must be omitted. This is mostly useful for importing a file for testing. The file at the specified path will be built as a normal userspace hoon file; i.e. its compilation subject will be Zuse augmented with the results of any Ford runes it has at the top of the file.
+The \lstinline[style=inlinecode]{/=} rune imports the result of building a Hoon file from a user-specified path (the second argument), wrapping it in a face specified by the first argument. The final \lstinline[style=inlinecode]{/hoon} at the end of the path must be omitted. This is mostly useful for importing a file for testing. The file at the specified path will be built as a normal userspace Hoon file; i.e., its compilation subject will be Zuse augmented with the results of any Ford runes it has at the top of the file.
 
 \begin{lstlisting}[style=listingcode]
 /*  hello-gen  %hoon  /gen/hello/hoon
 \end{lstlisting}
 
-The \lstinline[style=inlinecode]{/*} rune imports the contents of a file in the desk, specified as the third argument with the full path including the trailing mark, converted to the mark specified by the second argument, and pinned into the compilation subject wrapped in the face specified by the first argument. This can be used to import static data at build-time, such as a data file, a media file, or, in the case of this example, a hoon file as source text rather than already built.
+The \lstinline[style=inlinecode]{/*} rune imports the contents of a file in the desk, specified as the third argument with the full path including the trailing mark, converted to the mark specified by the second argument, and pinned into the compilation subject wrapped in the face specified by the first argument. This can be used to import static data at build-time, such as a data file, a media file, or, in the case of this example, a Hoon file as source text rather than already built.
 
-A valid userspace hoon file must contain a nonempty list of hoons (hoon source expressions) below the Ford runes, separated by gap (more than one space, or at least one newline). The system wraps this list of hoons in a \lstinline[style=inlinecode]{=~} expression so that the result of the previous hoon is used as the subject of the next hoon. The result of the Ford runes is used as the compilation subject for this \lstinline[style=inlinecode]{=~} hoon; informally, the shape of the compilation subject can be thought of as:
+A valid userspace Hoon file must contain a nonempty list of \lstinline[style=inlinecode]{hoon}s (Hoon source expressions) below the Ford runes, separated by gap (more than one space, or at least one newline). The system wraps this list of \lstinline[style=inlinecode]{hoon}s in a \lstinline[style=inlinecode]{=~} expression so that the result of the previous \lstinline[style=inlinecode]{hoon} is used as the subject of the next \lstinline[style=inlinecode]{hoon}. The result of the Ford runes is used as the compilation subject for this \lstinline[style=inlinecode]{=~} \lstinline[style=inlinecode]{hoon}; informally, the shape of the compilation subject can be thought of as:
 
 \begin{lstlisting}[style=listingcode]
 :*  fastar-2  fastar-1
@@ -257,7 +260,7 @@ The \lstinline[style=inlinecode]{/$} rune imports a mark conversion gate between
   /~  some-face  some-type  /some/directory
 \end{lstlisting}
 
-The \lstinline[style=inlinecode]{/~} rune imports, builds, evaluates, and pins the results of many \lstinline[style=inlinecode]{hoon} files in a directory.  Each hoon file in the specified directory will be built and evaluated. The result of evaluating each file will be added to a \lstinline[style=inlinecode]{++map} and pinned with the specified face \lstinline[style=inlinecode]{some-face}. The keys of the map will be the name of each file, and the values of the map will be the result of evaluating each file and casting its result to the type specified \lstinline[style=inlinecode]{some-type}.
+The \lstinline[style=inlinecode]{/~} rune imports, builds, evaluates, and pins the results of many \lstinline[style=inlinecode]{hoon} files in a directory.  Each Hoon file in the specified directory will be built and evaluated. The result of evaluating each file will be added to a \lstinline[style=inlinecode]{++map} and pinned with the specified face \lstinline[style=inlinecode]{some-face}. The keys of the map will be the name of each file, and the values of the map will be the result of evaluating each file and casting its result to the type specified \lstinline[style=inlinecode]{some-type}.
 
 All of the \lstinline[style=inlinecode]{hoon} files in the specified directory, when evaluated, must produce data of a type that nests under the type specified \lstinline[style=inlinecode]{some-type}. File with a mark other than \lstinline[style=inlinecode]{%hoon} will be ignored.
 
